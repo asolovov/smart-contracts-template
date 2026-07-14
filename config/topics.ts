@@ -28,9 +28,3 @@ const CONFIG: TopicConfig[] = [
 /// Derive the on-chain id once, here, so no other file ever hashes a label itself. Two places
 /// computing the same id is two places to get it subtly wrong.
 export const TOPICS: Topic[] = CONFIG.map((c) => ({ ...c, topicId: keccak256(toBytes(c.label)) }));
-
-export function topicBySymbol(symbol: string): Topic {
-  const found = TOPICS.find((t) => t.symbol === symbol);
-  if (!found) throw new Error(`unknown topic symbol: ${symbol}`);
-  return found;
-}

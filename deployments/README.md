@@ -23,6 +23,25 @@ npx hardhat run script/deploy/smokeTest.ts --network sepolia   # ALWAYS run this
 git add deployments/sepolia && git commit -m "chore: deploy to sepolia"
 ```
 
+## Deploying to a different chain
+
+The scripts are not hardcoded to Sepolia. `--network` sets Hardhat's default network, the scripts
+ask the chain for its id, and look that id up in `config/deployment.ts`. Adding a chain is two
+entries and no script edits:
+
+1. `hardhat.config.ts` → a new key under `networks` (url, chainId, accounts).
+2. `config/deployment.ts` → a new entry in `NETWORKS`, keyed by chain id, giving the directory
+   name and the explorer URL.
+
+An unknown chain id fails loudly rather than writing artefacts into a directory you did not mean.
+That check is deliberate: an RPC URL quietly pointing at a different chain than you think it does
+is the most expensive deploy mistake there is.
+
+Deploy parameters — signer count, quorum threshold, request fee, the minimum deployer balance —
+all live in `config/deployment.ts`. `deployAll.ts` records every one of them it used into
+`addresses.json`, and `verifyAll.sh` reads them back from there, so the constructor args used to
+verify can never drift from the ones used to deploy.
+
 The smoke test is not optional. A green CI proves the code is correct; only the smoke test
 proves the thing you just put on-chain is *wired* correctly — right owner, right signer set,
 reachable through the registry, able to accept a real attestation. Run it before you tell

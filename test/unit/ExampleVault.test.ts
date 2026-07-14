@@ -70,7 +70,7 @@ describe("ExampleVault", () => {
       await vault.write.requestUpdate({ value: sys.fee });
       await vault.write.requestUpdate({ value: sys.fee });
 
-      expect(await vault.read.nextReqId()).to.equal(2n);
+      expect(await vault.read.lastReqId()).to.equal(2n);
       expect(await vault.read.accruedFees()).to.equal(sys.fee * 2n);
 
       const events = await vault.getEvents.UpdateRequested({}, { fromBlock: 0n });
@@ -134,7 +134,7 @@ describe("ExampleVault", () => {
       await hostile.write.callRequestUpdate([sys.vault], { value: sys.fee });
 
       const vault = await vaultOf(conn, sys);
-      expect(await vault.read.nextReqId()).to.equal(1n);
+      expect(await vault.read.lastReqId()).to.equal(1n);
     });
   });
 

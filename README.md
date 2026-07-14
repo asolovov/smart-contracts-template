@@ -97,26 +97,58 @@ test/
   security/       One file per class of attack. See the header of ReplayProtection for the convention.
   helpers/        Fixtures, EIP-712 signing, revert matchers.
 script/deploy/    generateSigners · deployAll · verifyAll.sh · smokeTest
-config/topics.ts  The single declarative source of what gets deployed.
+config/
+  topics.ts       WHAT gets deployed — the topic table.
+  deployment.ts   HOW — signer count, quorum, fee, known chains.
+  eip712.ts       The EIP-712 domain. The only TS definition; tests and smokeTest import it.
 deployments/      Committed addresses + ABIs, one directory per network.
 ```
 
+## Deploying
+
+```sh
+cp .env.example .env      # SEPOLIA_RPC_URL, DEPLOYER_PRIVATE_KEY, ETHERSCAN_API_KEY
+npx hardhat compile
+
+npx hardhat run script/deploy/deployAll.ts --network sepolia   # deploy + write deployments/sepolia/
+sh script/deploy/verifyAll.sh sepolia                          # verify on Etherscan
+npx hardhat run script/deploy/smokeTest.ts --network sepolia   # prove the LIVE system works
+
+git add deployments/sepolia && git commit -m "chore: deploy to sepolia"
+```
+
+`--network` is real, not decorative: the scripts take the network from the flag, ask the chain
+who it is, and look the chain id up in `config/deployment.ts`. To deploy elsewhere, add the chain
+in two places — `networks` in `hardhat.config.ts` and `NETWORKS` in `config/deployment.ts`. You do
+not edit the scripts.
+
+Run the smoke test every time. CI proves the code is correct; only the smoke test proves the thing
+you just put on-chain is *wired* correctly. Full runbook: [`deployments/README.md`](./deployments/README.md).
+
 ## Making it yours
 
-1. **Rename the EIP-712 domain.** `SignatureLib.DOMAIN_NAME` and the matching constant in
-   `test/helpers/eip712.ts`. The domain is what scopes signatures to *your* protocol; two
-   protocols sharing a name and version share a signature namespace. This is the one rename you
-   must not skip.
-2. **Replace the example contracts.** Keep `SignerSet` (it is generic), rework `ExampleVault`
-   into whatever you are actually building, and swap `int256 value` for your payload.
-3. **Update `slither-all.sol`.** Add your contracts to it. Anything missing from that file is
-   silently invisible to static analysis.
-4. **Rewrite `config/topics.ts`** to describe your deployment.
-5. **Update `AGENTS.md`** — it tells coding agents the house rules. Stale rules are worse than
-   none.
-6. Set a real `maxAge` before you go anywhere near mainnet. It ships **disabled** so the tests
-   are deterministic.
-7. Delete this section from your README.
+1. **Take the author's name off it.** In order of how much it will embarrass you:
+   - The **CI badge** at the top of this README points at `asolovov/smart-contracts-template`. Left
+     alone it reports *this* repo's build status on *your* project — permanently green no matter
+     how broken your code is. Repoint it at your repo or delete it.
+   - `@author` tags in every `.sol` file, `author` + `name` in `package.json`, the copyright line
+     in `LICENSE`, and the link at the bottom of `CHANGELOG.md`.
+2. **Rename the EIP-712 domain.** Two places, and they must agree:
+   `SignatureLib.DOMAIN_NAME` (Solidity) and `DOMAIN_NAME` in `config/eip712.ts` (TypeScript, and
+   the only TS definition — the tests and the smoke test both import it). The domain scopes
+   signatures to *your* protocol; two protocols sharing a name and version share a signature
+   namespace. If you change only one side, `test/unit/SignatureLib.test.ts` goes red immediately —
+   that test exists precisely to catch this.
+3. **Replace the example contracts.** Keep `SignerSet` (it is generic), rework `ExampleVault` into
+   whatever you are building, and swap `int256 value` for your payload.
+4. **Update `slither-all.sol`.** Add your contracts to it. Anything missing from that file is
+   silently invisible to static analysis, and nothing will tell you.
+5. **Rewrite `config/topics.ts`** (what gets deployed) and **`config/deployment.ts`** (signer
+   count, quorum, fee, chains).
+6. **Update `AGENTS.md`** — it tells coding agents the house rules. Stale rules are worse than none.
+7. Set a real `maxAge` before you go anywhere near mainnet. It ships **disabled** so the tests are
+   deterministic.
+8. Delete this section, and rewrite `CHANGELOG.md`'s `[Unreleased]` block as your own.
 
 ## Conventions
 
@@ -125,8 +157,11 @@ deployments/      Committed addresses + ABIs, one directory per network.
 - **Custom errors, never revert strings.** Cheaper, and they carry the values that explain the
   failure.
 - **NatSpec on every external symbol**, and a `why` comment on every non-obvious line. If a
-  Slither finding is intentional, suppress it *inline*, next to a comment explaining the
-  reasoning — never in the config file, where the reasoning has nowhere to live.
+  Slither *finding* is intentional, suppress it **inline**, on the line, next to a comment
+  explaining the reasoning — never by widening `slither.config.json`, where the reasoning has
+  nowhere to live. (The config does disable two *detector categories* wholesale —
+  `naming-convention` and `solc-version` — because they fire on every file and say nothing about
+  this code. That is a policy choice made once, not a finding swept under the rug.)
 - **Interfaces are the dependency.** Contracts depend on `ISignerSet`, not `SignerSet`.
 - **Checks-Effects-Interactions, plus `nonReentrant`.** Both. Not either.
 - **Never derive accounting from `address(this).balance`** — it can be inflated by

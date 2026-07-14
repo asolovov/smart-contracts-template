@@ -10,15 +10,15 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { Hex } from "viem";
 
+import { SIGNER_COUNT } from "../../config/deployment.js";
+
 const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const SIGNERS_DIR = join(REPO_ROOT, ".signers");
-
-export const SIGNER_COUNT = 3;
 
 export interface SignerFile {
   address: `0x${string}`;
@@ -61,8 +61,13 @@ export function ensureSigners(count = SIGNER_COUNT): Signers {
   return { addresses, privateKeys };
 }
 
-// Allow `npx hardhat run script/deploy/generateSigners.ts` as a standalone step.
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run standalone with:  npx tsx script/deploy/generateSigners.ts
+//
+// Note this deliberately does NOT use `npx hardhat run`: that task imports the script from
+// within the Hardhat CLI process, so `process.argv[1]` stays the CLI's own path and this guard
+// would never fire. `pathToFileURL` (rather than string-concatenating "file://") is what makes
+// the comparison correct on paths containing spaces.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { addresses } = ensureSigners();
   console.log("signers:");
   for (const a of addresses) console.log(`  ${a}`);

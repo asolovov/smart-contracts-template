@@ -56,7 +56,9 @@ Do not report a task complete until that passes. If you touched a `.sol` file, r
 | Test an invariant over random inputs | `test/property/*.property.test.ts` |
 | Prove an attack still fails | `test/security/*.security.test.ts` |
 | Add a fixture / signing helper | `test/helpers/` |
-| Change what gets deployed | `config/topics.ts` — nowhere else |
+| Change **what** gets deployed | `config/topics.ts` |
+| Change **how** it deploys (quorum, fee, signer count, chains) | `config/deployment.ts` |
+| Touch the EIP-712 domain | `config/eip712.ts` **and** `src/libs/SignatureLib.sol` — both, or signatures stop verifying |
 | Add a deploy step | `script/deploy/` |
 
 ## Solidity rules
@@ -77,9 +79,10 @@ Do not report a task complete until that passes. If you touched a `.sol` file, r
 - **Never read `address(this).balance` for accounting.** It can be force-inflated. Track it.
 - **EIP-712**: `abi.encode`, never `abi.encodePacked`, for domain and struct hashes. Bind the
   digest to `chainId` and `address(this)`. Deduplicate recovered signers.
-- **Slither suppressions go inline**, on the line, next to a comment explaining why the pattern
-  is intentional. Never widen `slither.config.json` to silence a finding — the config has nowhere
-  to put the reasoning.
+- **Slither suppressions go inline**, on the line, next to a comment explaining why the pattern is
+  intentional. Never widen `slither.config.json` to silence a finding — the config has nowhere to
+  put the reasoning. (The two detector *categories* already disabled there, `naming-convention` and
+  `solc-version`, are a deliberate one-time policy choice; do not add more.)
 - New contract? **Add it to `slither-all.sol`.** A contract missing from that file is invisible to
   static analysis and nothing will tell you.
 

@@ -92,8 +92,11 @@ contract ExampleVault is IExampleVault, Ownable2Step, ReentrancyGuard {
     /// @notice Id of the most recent record. `0` means nothing has been recorded yet.
     uint64 public latestRecordId;
 
-    /// @notice Counter for paid requests. The next `reqId` assigned is `nextReqId + 1`.
-    uint256 public nextReqId;
+    /// @notice The most recently assigned request id. `0` means no request has been made yet.
+    /// @dev    Do not read this to learn the id of a request you just sent — on a public chain
+    ///         someone else's `requestUpdate` can land between your call and your read. Take the
+    ///         id from the `UpdateRequested` event in your own transaction receipt.
+    uint256 public lastReqId;
 
     /// @notice Per-request settlement flag. Never set for `reqId == 0` (the heartbeat sentinel).
     mapping(uint256 => bool) public fulfilled;
@@ -130,8 +133,8 @@ contract ExampleVault is IExampleVault, Ownable2Step, ReentrancyGuard {
         if (msg.value < fee) revert InsufficientFee(msg.value, fee);
 
         unchecked {
-            // `nextReqId` is a uint256 counter; overflow is not reachable in any real lifetime.
-            reqId = ++nextReqId;
+            // A uint256 counter; overflow is not reachable in any real lifetime.
+            reqId = ++lastReqId;
             accruedFees += fee;
         }
         emit UpdateRequested(reqId, msg.sender);

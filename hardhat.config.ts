@@ -17,7 +17,7 @@ const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY ?? "";
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY ?? "";
 
 const config: HardhatUserConfig = {
-  // Deploys are plain TypeScript under `script/deploy/` — see that directory's README.
+  // Deploys are plain TypeScript under `script/deploy/` — the runbook is in `deployments/README.md`.
   // Add `@nomicfoundation/hardhat-ignition-viem` here if you want resumable, declarative
   // deployments instead.
   plugins: [hardhatViem, hardhatViemAssertions, hardhatNetworkHelpers, hardhatMocha, hardhatKeystore, hardhatVerify],
