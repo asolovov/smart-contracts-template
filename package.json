@@ -1,0 +1,47 @@
+{
+  "name": "smart-contracts-template",
+  "version": "0.1.0",
+  "description": "Production-shaped Solidity starter — Hardhat v3, viem, TypeScript, OpenZeppelin v5, Solhint/Prettier/Slither, CI.",
+  "license": "MIT",
+  "author": "Andrei Solovov <https://github.com/asolovov>",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat test mocha --coverage",
+    "typecheck": "hardhat compile && tsc --noEmit",
+    "lint": "solhint 'src/**/*.sol'",
+    "lint:fix": "solhint 'src/**/*.sol' --fix",
+    "format": "prettier --write 'src/**/*.sol' '{test,script,config}/**/*.{ts,js}'",
+    "format:check": "prettier --check 'src/**/*.sol' '{test,script,config}/**/*.{ts,js}'",
+    "slither": "sh scripts/run-slither.sh",
+    "verify:all": "npm run build && npm run typecheck && npm run lint && npm run format:check && npm test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-keystore": "3.0.12",
+    "@nomicfoundation/hardhat-mocha": "3.0.21",
+    "@nomicfoundation/hardhat-network-helpers": "3.0.11",
+    "@nomicfoundation/hardhat-verify": "3.0.21",
+    "@nomicfoundation/hardhat-viem": "3.0.9",
+    "@nomicfoundation/hardhat-viem-assertions": "3.1.2",
+    "@openzeppelin/contracts": "5.6.1",
+    "@types/chai": "5.2.3",
+    "@types/mocha": "10.0.10",
+    "@types/node": "22.10.10",
+    "chai": "6.2.2",
+    "dotenv": "16.4.7",
+    "fast-check": "4.8.0",
+    "hardhat": "3.9.1",
+    "mocha": "11.7.5",
+    "prettier": "3.4.2",
+    "prettier-plugin-solidity": "2.3.1",
+    "solhint": "6.2.3",
+    "tsx": "4.19.3",
+    "typescript": "5.7.3",
+    "viem": "2.55.2"
+  }
+}

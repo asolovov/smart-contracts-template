@@ -1,0 +1,8 @@
+{
+  "detectors_to_exclude": "naming-convention,solc-version",
+  "filter_paths": "node_modules|src/test|slither-all.sol",
+  "exclude_optimization": true,
+  "disable_color": true,
+  "solc_remaps": ["@openzeppelin/=node_modules/@openzeppelin/"],
+  "solc_args": "--evm-version cancun"
+}
