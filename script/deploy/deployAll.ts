@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import { network } from "hardhat";
 import type { Hex } from "viem";
 
-import { MIN_DEPLOYER_BALANCE, networkInfo, REQUEST_FEE, THRESHOLD } from "../../config/deployment.js";
+import { MIN_DEPLOYER_BALANCE, networkInfo, REQUEST_FEE, SIGNER_COUNT, THRESHOLD } from "../../config/deployment.js";
 import { TOPICS } from "../../config/topics.js";
 import { ensureSigners } from "./generateSigners.js";
 
@@ -58,9 +58,20 @@ interface DeploymentRecord {
 }
 
 async function main(): Promise<void> {
-  if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("missing DEPLOYER_PRIVATE_KEY (see .env.example)");
+  // Check the config BEFORE touching the chain. `SignerSet`'s constructor enforces this too, but
+  // a constructor revert during deployment surfaces as a multi-kilobyte bytecode dump ending in
+  // "An unknown RPC error occurred" — with the gas already spent. Catch it here, for free.
+  if (THRESHOLD <= 0n || THRESHOLD > BigInt(SIGNER_COUNT)) {
+    throw new Error(
+      `THRESHOLD is ${THRESHOLD} but must be within 1..${SIGNER_COUNT} (SIGNER_COUNT). Fix config/deployment.ts.`,
+    );
+  }
 
-  // No `network:` key — that is what makes `--network` meaningful. Passing one here would
+  // The deployer key is NOT read from `process.env` here: `hardhat.config.ts` takes it via
+  // `configVariable`, so it may equally come from the encrypted keystore. Checking `process.env`
+  // would reject exactly the users who followed the more secure advice.
+  //
+  // No `network:` key below — that is what makes `--network` meaningful. Passing one here would
   // override the flag and silently deploy to the wrong chain.
   const conn = await network.create({ chainType: "l1" });
   const [deployer] = await conn.viem.getWalletClients();
@@ -141,9 +152,18 @@ async function main(): Promise<void> {
   console.log(`signerSet: ${net.explorer}/address/${record.signerSet}`);
   console.log(`registry:  ${net.explorer}/address/${record.registry}`);
   for (const v of vaults) console.log(`  ${v.symbol.padEnd(5)} ${v.address}`);
+  // Echo back the exact `--network` value that was passed, so both next steps are copy-pasteable.
+  const flag = networkFlag() ?? net.name;
   console.log(`\nartifacts written to deployments/${net.name}/`);
   console.log(`next:  sh script/deploy/verifyAll.sh ${net.name}`);
-  console.log(`then:  npx hardhat run script/deploy/smokeTest.ts --network <your-network-flag>`);
+  console.log(`then:  npx hardhat run script/deploy/smokeTest.ts --network ${flag}`);
+}
+
+/// The value the user passed to `--network`, purely so the summary can print a command they can
+/// paste. Hardhat has already consumed the flag; we only echo it.
+function networkFlag(): string | undefined {
+  const i = process.argv.indexOf("--network");
+  return i !== -1 ? process.argv[i + 1] : undefined;
 }
 
 /// Persist addresses + ABIs. These files are COMMITTED — they are how off-chain services and

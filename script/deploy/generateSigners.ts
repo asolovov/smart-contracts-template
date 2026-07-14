@@ -30,10 +30,14 @@ export interface Signers {
   privateKeys: Hex[];
 }
 
-/// Load the signer keys from `.signers/`, generating them on first run. Idempotent: an existing
+/// Load the signer keys from `.signers/`, generating any that are missing. Idempotent: an existing
 /// key file is never overwritten, so re-running a deploy does not silently rotate the set.
+///
+/// ONLY the deploy script should call this. Anything that signs against an *existing* deployment
+/// must call `loadSigners()` instead — see the warning there.
 export function ensureSigners(count = SIGNER_COUNT): Signers {
-  mkdirSync(SIGNERS_DIR, { recursive: true });
+  // 0700, not the default 0755: the directory holds private keys.
+  mkdirSync(SIGNERS_DIR, { recursive: true, mode: 0o700 });
 
   const addresses: `0x${string}`[] = [];
   const privateKeys: Hex[] = [];
@@ -56,6 +60,37 @@ export function ensureSigners(count = SIGNER_COUNT): Signers {
     addresses.push(record.address);
     privateKeys.push(record.privateKey);
     console.log(`[signers] generated ${path} → ${record.address}`);
+  }
+
+  return { addresses, privateKeys };
+}
+
+/// Load the signer keys from `.signers/`, failing loudly if they are not all there.
+///
+/// This exists because `ensureSigners()` *generates* what is missing, and `.signers/` is
+/// gitignored — so on a fresh clone, a CI runner, or a teammate's laptop it does not exist. Any
+/// script that signs against an ALREADY-DEPLOYED system must therefore never call `ensureSigners`:
+/// it would mint a brand-new key set, sign with keys the deployed `SignerSet` has never heard of,
+/// and fail on-chain with an opaque `InsufficientSignatures` — after the gas has been spent.
+///
+/// Missing keys are not a thing to paper over. If you deployed from another machine, the keys you
+/// need are on that machine.
+export function loadSigners(count = SIGNER_COUNT): Signers {
+  const addresses: `0x${string}`[] = [];
+  const privateKeys: Hex[] = [];
+
+  for (let i = 1; i <= count; i++) {
+    const path = join(SIGNERS_DIR, `signer${i}.json`);
+    if (!existsSync(path)) {
+      throw new Error(
+        `missing ${path}. The signer keys used at deploy time are not on this machine — ` +
+          `.signers/ is gitignored by design. Copy them across; do NOT regenerate, or your ` +
+          `signatures will not match the deployed SignerSet.`,
+      );
+    }
+    const existing = JSON.parse(readFileSync(path, "utf8")) as SignerFile;
+    addresses.push(existing.address);
+    privateKeys.push(existing.privateKey);
   }
 
   return { addresses, privateKeys };

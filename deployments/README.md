@@ -7,7 +7,7 @@ frontends, and a future you learn where the contracts live and what shape they a
 |---|---|---|
 | `addresses.json` | `script/deploy/deployAll.ts` | off-chain services, frontends, `smokeTest.ts`, `verifyAll.sh` |
 | `abis/*.json` | `script/deploy/deployAll.ts` (copied from `artifacts/`) | anything that needs to encode a call — viem, ethers, Go bindings |
-| `.verify-args/` | `script/deploy/verifyAll.sh` | nothing — transient, gitignored |
+| `.verify-args/` | `script/deploy/verifyAll.sh` | `hardhat verify` (constructor args). Transient, gitignored. |
 
 There is deliberately **no `<network>/` directory in the template**. It appears the first time
 you deploy. Committing an empty one would suggest a deployment exists when none does.
@@ -32,6 +32,10 @@ entries and no script edits:
 1. `hardhat.config.ts` → a new key under `networks` (url, chainId, accounts).
 2. `config/deployment.ts` → a new entry in `NETWORKS`, keyed by chain id, giving the directory
    name and the explorer URL.
+
+**The two names must match.** The key in `hardhat.config.ts#networks` and the `name` in `NETWORKS`
+are used interchangeably — `sh script/deploy/verifyAll.sh <name>` passes the same string to
+`--network` and to `deployments/<name>/`.
 
 An unknown chain id fails loudly rather than writing artefacts into a directory you did not mean.
 That check is deliberate: an RPC URL quietly pointing at a different chain than you think it does

@@ -25,8 +25,13 @@ export const MIN_DEPLOYER_BALANCE = 30_000_000_000_000_000n; // 0.03 ETH
 
 export interface NetworkInfo {
   /// Directory name under `deployments/`.
+  ///
+  /// **This must be identical to the network's key in `hardhat.config.ts#networks`.** The two are
+  /// used interchangeably: `sh script/deploy/verifyAll.sh <name>` passes the same string to
+  /// `--network` and to `deployments/<name>/`. Name them differently and one of the two lookups
+  /// fails with a confusing "network not found" or "no deployment found".
   name: string;
-  /// Block explorer, for the deploy summary.
+  /// Block explorer base URL, for printing clickable links in the deploy summary.
   explorer: string;
 }
 

@@ -14,7 +14,7 @@
 //   4. Sign an attestation with the local signer keys and land a real `submitValue`.
 //   5. Read the value back out.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,7 +29,7 @@ import { networkInfo } from "../../config/deployment.js";
 // on-chain with an opaque `InsufficientSignatures` after the gas has been spent.
 import { ATTESTATION_TYPES, eip712Domain } from "../../config/eip712.js";
 import { TOPICS } from "../../config/topics.js";
-import { ensureSigners } from "./generateSigners.js";
+import { loadSigners } from "./generateSigners.js";
 
 const REPO_ROOT = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
@@ -37,6 +37,8 @@ interface Deployment {
   network: string;
   chainId: number;
   registry: `0x${string}`;
+  signerSet: `0x${string}`;
+  signerAddresses: `0x${string}`[];
   threshold: string;
 }
 
@@ -46,9 +48,11 @@ async function main(): Promise<void> {
   const chainId = await pub.getChainId();
   const net = networkInfo(chainId);
 
-  const deployment = JSON.parse(
-    readFileSync(join(REPO_ROOT, "deployments", net.name, "addresses.json"), "utf8"),
-  ) as Deployment;
+  const addressesPath = join(REPO_ROOT, "deployments", net.name, "addresses.json");
+  if (!existsSync(addressesPath)) {
+    throw new Error(`no deployment found at deployments/${net.name}/addresses.json — run deployAll.ts first`);
+  }
+  const deployment = JSON.parse(readFileSync(addressesPath, "utf8")) as Deployment;
 
   // Guard against smoke-testing one network's deployment against another's RPC.
   if (deployment.chainId !== chainId) {
@@ -58,6 +62,19 @@ async function main(): Promise<void> {
   }
 
   console.log(`=== smoke test :: ${net.name} (chain id ${chainId}) ===\n`);
+
+  // Load the signer keys and prove they are the ones this deployment authorized — BEFORE we spend
+  // a single wei. `loadSigners` refuses to generate; if it did, we would pay for a request and
+  // then sign it with keys the on-chain SignerSet has never heard of.
+  const { addresses: signerAddresses, privateKeys } = loadSigners();
+  const local = signerAddresses.map((a) => a.toLowerCase()).join(",");
+  const deployed = deployment.signerAddresses.map((a) => a.toLowerCase()).join(",");
+  if (local !== deployed) {
+    throw new Error(
+      `.signers/ does not match the deployed signer set.\n  local:    ${local}\n  deployed: ${deployed}\n` +
+        `These are the keys the deployment authorized; signing with any others cannot reach a quorum.`,
+    );
+  }
 
   const registry = await conn.viem.getContractAt("ExampleRegistry", deployment.registry);
 
@@ -99,8 +116,10 @@ async function main(): Promise<void> {
 
   // 4 — sign with the local keys and land a real submission.
   console.log("\n--- submitValue (quorum of local signers) ---");
-  const { privateKeys } = ensureSigners();
-  const threshold = Number(deployment.threshold);
+  // Ask the live SignerSet for the threshold rather than trusting addresses.json. The owner can
+  // rotate it after deploy, and signing the wrong number of signatures fails on-chain.
+  const signerSet = await conn.viem.getContractAt("SignerSet", deployment.signerSet);
+  const threshold = Number(await signerSet.read.getThreshold());
   const observedAt = BigInt(Math.floor(Date.now() / 1000));
   const value = 1234_00000000n;
 
